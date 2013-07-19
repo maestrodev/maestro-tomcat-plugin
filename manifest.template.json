@@ -1,0 +1,58 @@
+{
+  "tasks": [{
+    "name": "tomcat deploy",
+    "description": "Deploy A Web Application To Tomcat With A Given Context",
+    "license": "Apache 2.0",
+    "author":  "MaestroDev",
+    "version": "updated at build time",
+    "class":   "MaestroDev::TomcatWorker",
+    "type":    "ruby",
+    "dependencies":[
+    ],
+    "task":{
+      "command": "/tomcat/deploy",
+      "inputs": {
+        "host": {
+          "description": "Hostname Of The Server Running Tomcat",
+          "required": true,
+          "type": "String",
+          "value": "localhost"
+        },
+        "port": {
+          "description": "Port Tomcat Is Bound To",
+          "required": true,
+          "type": "Integer",
+          "value": 8080
+        },
+        "path": {
+          "description": "Location Of The WAR File",
+          "required": true,
+          "type": "String",
+          "value": ""
+        },
+        "web_path": {
+          "description": "Context Path Of The Manager Application",
+          "required": true,
+          "type": "String",
+          "value": ""
+        },
+        "user": {
+          "description": "Tomcat User",
+          "required": true,
+          "type": "String",
+          "value": ""
+        },
+        "password": {
+          "description": "Tomcat Manager Password",
+          "required": true,
+          "type": "Password",
+          "value": ""
+        }
+      },
+      "outputs": {"output" : {"type" : "String"}},
+      "type": "remote",
+      "tool_name": "Deploy",
+      "icon": "tomcat.png"
+    }
+  }]
+}
