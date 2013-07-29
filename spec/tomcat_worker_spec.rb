@@ -17,7 +17,7 @@
 
 require 'spec_helper'
 
-describe MaestroDev::TomcatPlugin::TomcatWorker do
+describe MaestroDev::Plugin::TomcatWorker do
 
   before(:all) do
     Maestro::MaestroWorker.mock!

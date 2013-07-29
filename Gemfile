@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 #dependencies
-gem 'maestro_plugin', '>=0.0.7'
+gem 'maestro_plugin', '>=0.0.14'
 gem 'rest-client', '1.6.7'
 
 group :development do

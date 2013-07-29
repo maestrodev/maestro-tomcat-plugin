@@ -5,7 +5,7 @@
     "license": "Apache 2.0",
     "author":  "MaestroDev",
     "version": "updated at build time",
-    "class":   "MaestroDev::TomcatPlugin::TomcatWorker",
+    "class":   "MaestroDev::Plugin::TomcatWorker",
     "type":    "ruby",
     "dependencies":[
     ],
