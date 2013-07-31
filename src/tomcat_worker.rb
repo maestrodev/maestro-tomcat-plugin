@@ -60,6 +60,10 @@ module MaestroDev
       private
 
       def validate_common_parameters
+        # We use restclient, and this method is called before any task is
+        # executed, so set up proxy here.... once
+        RestClient.proxy = ENV['http_proxy'] if ENV.has_key?('http_proxy')
+
         errors = []
 
         @host = get_field('host', '')
@@ -136,7 +140,6 @@ module MaestroDev
 
       def list_wars
         begin
-          http = Net::HTTP.new(@host, @port)
           getter = RestClient::Resource.new(
              "http://#{@host}:#{@port}/manager/list",
              :user => @user,
@@ -160,7 +163,6 @@ module MaestroDev
 
       def delete_war(web_path)
         begin
-          http = Net::HTTP.new(@host, @port)
           deleter = RestClient::Resource.new(
             "http://#{@host}:#{@port}/manager/undeploy?path=#{web_path}",
             :user => @user,
@@ -189,7 +191,6 @@ module MaestroDev
 
       def put_war(war)
         begin
-          http = Net::HTTP.new(@host, @port)
           putter = RestClient::Resource.new(
             "http://#{@host}:#{@port}/manager/deploy?path=#{@web_path}&war=file:#{@path}",
             :user => @user,
