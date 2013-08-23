@@ -1,4 +1,5 @@
 *.gem
+.idea/
 manifest.json
 *.zip
 *.rbc

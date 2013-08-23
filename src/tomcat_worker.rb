@@ -138,16 +138,56 @@ module MaestroDev
         res
       end
 
+      def get_response(url, command)
+        getter = RestClient::Resource.new(
+          "#{url}/#{command}",
+           :user => @user,
+           :password => @password,
+           :timeout => 60,
+           :open_timeout => 60)
+        response = getter.get :content_type => 'application/text'
+      end
+
+      def manager_url
+        # We could let this be configured, but for now let's try to detect
+        # TODO: also support SSL and a context base
+        @manager_url ||= detect_manager_url
+      end
+
+      def detect_manager_url
+        # Tomcat 7
+        url = "http://#{@host}:#{@port}/manager/text"
+        begin
+          response = get_response(url, "serverinfo")
+          if response.match(/OK/)
+            write_output("Connected to Tomcat server:\n#{response}")
+            return url
+          else
+            Maestro.log.info "Tomcat not found at #{url} (will try alternatives), response:\n#{response}"
+          end
+        rescue => e
+          write_output("Unable to connect to Tomcat: #{e}")
+        end
+
+        # Tomcat 6
+        url = "http://#{@host}:#{@port}/manager"
+        begin
+          response = get_response(url, "serverinfo")
+          if response.match(/OK/)
+            write_output("Connected to Tomcat server:\n#{response}")
+          else
+            raise PluginError, "Tomcat not found at #{url} (No more alternatives to try), response:\n#{response}"
+          end
+        rescue => e
+          raise PluginError, "Unable to connect to Tomcat: #{e}"
+        end
+
+        url
+      end
+
       def list_wars
         begin
-          getter = RestClient::Resource.new(
-             "http://#{@host}:#{@port}/manager/list",
-             :user => @user,
-             :password => @password, 
-             :timeout => 60, 
-             :open_timeout => 60)
-
-          response = getter.get :content_type => 'application/text'
+          response = get_response(manager_url, "list")
 
           if response.match(/OK/)
             write_output("Successfully listed apps from remote server\n#{response}", :buffer => true)
@@ -163,14 +203,7 @@ module MaestroDev
 
       def delete_war(web_path)
         begin
-          deleter = RestClient::Resource.new(
-            "http://#{@host}:#{@port}/manager/undeploy?path=#{web_path}",
-            :user => @user,
-            :password => @password,
-            :timeout => 60,
-            :open_timeout => 60)
-
-          response = deleter.get :content_type => 'application/text'
+          response = get_response(manager_url, "undeploy?path=#{web_path}")
 
           if response.match(/OK/)
             write_output("\nSuccessfully deleted app at #{web_path} from remote server (#{response})", :buffer => true)
@@ -192,7 +225,7 @@ module MaestroDev
       def put_war(war)
         begin
           putter = RestClient::Resource.new(
-            "http://#{@host}:#{@port}/manager/deploy?path=#{@web_path}&war=file:#{@path}",
+            "#{manager_url}/deploy?path=#{@web_path}&war=file:#{@path}",
             :user => @user,
             :password => @password,
             :timeout => 3600,
