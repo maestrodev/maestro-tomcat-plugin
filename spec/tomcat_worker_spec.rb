@@ -37,8 +37,8 @@ describe MaestroDev::Plugin::TomcatWorker do
     @@path = '/tmp/webapp.war'
 
     @@success = "Successfully put file #{@@path} To Remote Server OK - Deployed application at context path #{@@web_path}"
-    @@rejected = "Failed"
-    @@unknown = "Failed to"
+    @@rejected = "Request Timeout"
+    @@unknown = "name or service not known"
     @@missing_path = "path not specified"
 
     it "should detect missing input fields" do

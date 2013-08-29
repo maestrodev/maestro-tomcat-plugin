@@ -1,4 +1,5 @@
 {
+  "image": "tomcat.png",
   "tasks": [{
     "name": "tomcat deploy",
     "description": "Deploy A Web Application To Tomcat With A Given Context",
