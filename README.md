@@ -1,5 +1,6 @@
 maestro-tomcat-plugin
 ====================
+[![Code Climate](https://codeclimate.com/github/maestrodev/maestro-tomcat-plugin.png)](https://codeclimate.com/github/maestrodev/maestro-tomcat-plugin)
 
 A Maestro Plugin that allows a war to be deployed using Tomcat manager
 
