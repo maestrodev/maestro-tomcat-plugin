@@ -7,6 +7,8 @@ module MaestroDev
 
     class TomcatWorker < Maestro::MaestroWorker
 
+      URL_REGEX = '^(http(s)?):\/\/(?:(.*):(.*)@)?(?:([^:\/]*)(?::(\d+))?)(\/(?:.*))?'
+
       def deploy
         validate_deploy_parameters
 
@@ -61,13 +63,38 @@ module MaestroDev
         @port = get_int_field('port', 80)
         @user = get_field('user', '')
         @password = get_field('password', '')
+
+        # This bit will support both a simple base url "/tomcat" or a fully specified url "http(s)://user:password@sample.com:port/tomcat"
+        # The regex supports extracting (if present): scheme [1], 's' indicator [2], user [3], password [4], host [5], port [6], path [7]
+        @tomcat_root_url = get_field('tomcat_root_url', '')
+
+        path_bits = @tomcat_root_url.match(URL_REGEX)
+
+        if path_bits
+          # Prefer to use the user/password specified separately.  Use presence of specified user field to make determination
+          # of which to use
+          if @user.empty?
+            @user = path_bits[3] || @user
+            @password = path_bits[4] || @password
+          end
+
+          @host = path_bits[5]
+          @port = as_int(path_bits[6], 0)
+          @tomcat_root_url = "#{path_bits[1]}://#{@host}#{@port > 0 ? ":#{@port}" : ''}#{path_bits[7]}"
+        else
+          @tomcat_root_url = URI.join("http://#{@host}:#{@port}", @tomcat_root_url).to_s
+        end
+
+        # Must end with a '/' or the URI.join method will cause problems (it may remove the path component)
+        @tomcat_root_url = @tomcat_root_url + '/' unless @tomcat_root_url.end_with?('/')
+
         @timeout = get_int_field('timeout', 90)
         @max_connect_attempts = get_int_field('max_connect_attempts', 5)
 
-        errors << 'host not specified' if @host.empty?
-        errors << 'port not specified' if @port < 1
-        errors << 'user not specified' if @user.empty?
-        errors << 'password not specified' if @password.empty?
+        errors << 'host not specified (either in host or tomcat_root_url)' if @host.empty?
+        errors << 'port not specified (either in port or tomcat_root_url)' if @port < 1
+        errors << 'user not specified (either in user or tomcat_root_url)' if @user.empty?
+        errors << 'password not specified (either in password or tomcat_root_url)' if @password.empty?
 
         errors
       end
@@ -87,9 +114,7 @@ module MaestroDev
           set_field('web_path', @web_path)
         end
 
-        if !errors.empty?
-          raise ConfigError, "Configuration errors: #{errors.join(', ')}"
-        end
+        post_validate(errors)
       end
 
       def validate_undeploy_parameters
@@ -104,13 +129,23 @@ module MaestroDev
           set_field('web_path', @web_path)
         end
 
-        if !errors.empty?
-          raise ConfigError, "Configuration errors: #{errors.join(', ')}"
-        end
+        post_valiate(errors)
       end
 
       def validate_list_parameters
-        errors = validate_common_parameters
+        post_validate(validate_common_parameters)
+      end
+
+      def post_validate(errors)
+
+        # Only attempt to detect manager if we have no errors so far
+        if errors.empty?
+          begin
+            @manager_url = detect_manager_url
+          rescue ConfigError => e
+            errors << e.message
+          end
+        end
 
         if !errors.empty?
           raise ConfigError, "Configuration errors: #{errors.join(', ')}"
@@ -132,6 +167,10 @@ module MaestroDev
           response = yield
         rescue RestClient::ResourceNotFound => e
           raise PluginError, "HTTP Error talking to Tomcat while performing operation '#{operation_text}': #{e.class} #{e}"
+        rescue RestClient::RequestTimeout => e
+          raise PluginError, "Timeout while performing '#{operation_text}'"
+        rescue SocketError => e
+          raise PluginError, "SocketError while performing '#{operation_text}': #{e}"
         end
 
         # If this is a 'ok' type response, look for OK.
@@ -141,37 +180,39 @@ module MaestroDev
         return response
       end
 
-      def manager_url
-        # We could let this be configured, but for now let's try to detect
-        # TODO: also support SSL and a context base
-        @manager_url ||= detect_manager_url
-      end
-
       def detect_manager_url
         alternatives = [
-          "http://#{@host}:#{@port}/manager/text",  # Tomcat 7
-          "http://#{@host}:#{@port}/manager"        # Tomcat 6
+          URI.join(@tomcat_root_url, "manager/text").to_s,  # Tomcat 7
+          URI.join(@tomcat_root_url, "manager").to_s        # Tomcat 6
         ]
+
+        errors = []
 
         url = alternatives.find { |test_url|
           begin
             response = get_response(test_url, "serverinfo", "locate tomcat serverinfo page")
             true
-          rescue PluginError
-            Maestro.log.info "Tomcat not found at #{test_url}"
+          rescue PluginError => e
+            # Logging has been err... removed from base plugin - best not to try
+            # The config error below includes this info anyway
+#            Maestro.log.info "Tomcat not found at #{test_url}"
+            errors << "Alternative '#{test_url}': #{e.message}"
+            false
+          rescue StandardError => e
+            errors << "Alternative #{test_url} returned unexpected error #{e.message}"
             false
           end
         }
 
-        raise PluginError, "Could not locate tomcat manager at any of: #{alternatives.join(', ')}" unless url
+        raise ConfigError, "Could not locate tomcat manager.  #{errors.join(', ')}" unless url
 
         return url
       rescue StandardError => e
-        raise PluginError, "Unable to connect to Tomcat: #{e}"
+        raise ConfigError, "Unable to connect to Tomcat: #{e}"
       end
 
       def list_wars
-        response = get_response(manager_url, "list", "list wars") || ''
+        response = get_response(@manager_url, "list", "list wars") || ''
 
         write_output("\nApp list:\n#{response}", :buffer => true)
 
@@ -179,7 +220,7 @@ module MaestroDev
       end
 
       def delete_war
-        response = get_response(manager_url, "undeploy?path=#{@web_path}", "delete war #{@web_path}")
+        response = get_response(@manager_url, "undeploy?path=#{@web_path}", "delete war #{@web_path}")
 
         write_output("\nSuccessfully deleted app at #{@web_path} from remote server (#{response})", :buffer => true)
         save_output_value('war', @web_path)
@@ -188,7 +229,7 @@ module MaestroDev
       def put_war
         begin
           putter = RestClient::Resource.new(
-            "#{manager_url}/deploy?path=#{@web_path}&war=file:#{@path}",
+            "#{@manager_url}/deploy?path=#{@web_path}&war=file:#{@path}",
             :user => @user,
             :password => @password,
             :timeout => 3600,
@@ -197,7 +238,7 @@ module MaestroDev
           response = nil
 
           # RestClient does support streams, you they just seem intent on making it look like they're using strings
-          # (to the point of aliasing "to_s" to "read"
+          # (to the point of aliasing "to_s" to "read")
           File.open(@path, "rb") do |file|
             response = check_ok_response("upload war #{@web_path}") { putter.put(file, :content_type => 'application/binary') }
           end

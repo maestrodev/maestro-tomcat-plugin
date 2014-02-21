@@ -37,11 +37,11 @@ describe MaestroDev::Plugin::TomcatWorker do
     @@path = '/tmp/webapp.war'
 
     @@success = "Successfully put file #{@@path} To Remote Server OK - Deployed application at context path #{@@web_path}"
-    @@rejected = "Request Timeout"
+    @@rejected = "Timeout"
     @@unknown = "name or service not known"
     @@missing_path = "path not specified"
 
-    it "should detect missing input fields" do
+    it "should detect missing input fields (host + port specified)" do
       workitem = {'fields' => {
                                  'host' => 'adiosnugget',
                                  'port' => "22",
@@ -55,7 +55,34 @@ describe MaestroDev::Plugin::TomcatWorker do
        workitem['fields']['__error__'].should include(@@missing_path)
     end
 
-    it "should deploy a war" do
+    it "should detect missing input fields (host + port not specified)" do
+      workitem = {'fields' => {
+                                 'tomcat_root_url' => 'http://adiosnugget:22',
+                                 'user' => "tomcat",
+                                 'password' => "tomcat",
+                                 'web_path' => "/centrepoint"
+                                 }}
+
+      subject.perform(:deploy, workitem)
+      workitem['fields']['__error__'].should include(@@missing_path)
+      workitem['fields']['__error__'].should_not include('user not specified')
+      workitem['fields']['__error__'].should_not include('password not specified')
+    end
+
+    it "should detect missing input fields (user + pass specified insecurely)" do
+      workitem = {'fields' => {
+                                 'tomcat_root_url' => 'http://tomcat:tomcat@adiosnugget:22',
+                                 'web_path' => "/centrepoint"
+                                 }}
+
+      subject.perform(:deploy, workitem)
+
+      workitem['fields']['__error__'].should include(@@missing_path)
+      workitem['fields']['__error__'].should_not include('user not specified')
+      workitem['fields']['__error__'].should_not include('password not specified')
+    end
+
+    it "should deploy a war (host, port, default root ==> i.e. Legacy)" do
        workitem = {'fields' => {
                                   'path' => @@path,
                                   'host' => @@host,
@@ -75,6 +102,43 @@ describe MaestroDev::Plugin::TomcatWorker do
       workitem['__output__'].should include(@@success)
     end
 
+    it "should deploy a war (tomcat_root_url) (default root [/])" do
+       workitem = {'fields' => {
+                                  'path' => @@path,
+                                  'tomcat_root_url' => "http://#{@@host}:#{@@port}/",
+                                  'user' => @@user,
+                                  'password' => @@password,
+                                  'web_path' => @@web_path
+                                  }}
+
+      stub_request(:get, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/manager/text/serverinfo").to_return(:body => 'OK - Server info')
+      stub_request(:get, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/manager/text/list").to_return(:body => 'OK Did It')
+      stub_request(:put, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/manager/text/deploy?path=#{@@web_path}&war=file:#{@@path}").to_return(:body => "OK - Deployed application at context path #{@@web_path}")
+
+      subject.perform(:deploy, workitem)
+
+      workitem['fields']['__error__'].should be_nil
+      workitem['__output__'].should include(@@success)
+    end
+
+    it "should deploy a war (tomcat_root_url) (specified root [tomcat])" do
+       workitem = {'fields' => {
+                                  'path' => @@path,
+                                  'tomcat_root_url' => "http://#{@@host}:#{@@port}/tomcat",
+                                  'user' => @@user,
+                                  'password' => @@password,
+                                  'web_path' => @@web_path
+                                  }}
+
+      stub_request(:get, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/tomcat/manager/text/serverinfo").to_return(:body => 'OK - Server info')
+      stub_request(:get, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/tomcat/manager/text/list").to_return(:body => 'OK Did It')
+      stub_request(:put, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/tomcat/manager/text/deploy?path=#{@@web_path}&war=file:#{@@path}").to_return(:body => "OK - Deployed application at context path #{@@web_path}")
+
+      subject.perform(:deploy, workitem)
+
+      workitem['fields']['__error__'].should be_nil
+      workitem['__output__'].should include(@@success)
+    end
 
     it "should deploy a war Tomcat 6 fallback" do
        workitem = {'fields' => {
@@ -120,7 +184,6 @@ describe MaestroDev::Plugin::TomcatWorker do
       workitem['__output__'].should include("Deleted that pesky webapp #{@@web_path} for you")
     end
 
-
     it 'should act rejected if tomcat not running at host' do
       workitem = {'fields' => {
                                 'path' => @@path,
@@ -142,6 +205,25 @@ describe MaestroDev::Plugin::TomcatWorker do
       workitem['fields']['__error__'].should include(@@rejected)
     end
 
+    it 'should act rejected if tomcat not running at host (tomcat_root_url)' do
+      workitem = {'fields' => {
+                                'path' => @@path,
+                                'tomcat_root_url' => "http://#{@@host}:#{@@port}",
+                                'user' => @@user,
+                                'password' => @@password,
+                                'web_path' => @@web_path,
+                                'timeout' => 1
+                               }}
+
+      # Tomcat 7 attempt
+      stub_request(:get, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/manager/text/serverinfo").to_timeout
+      # Tomcat 6 attempt
+      stub_request(:get, "http://#{@@user}:#{@@password}@#{@@host}:#{@@port}/manager/serverinfo").to_timeout
+
+      subject.perform(:deploy, workitem)
+
+      workitem['fields']['__error__'].should include(@@rejected)
+    end
 
     it 'should report if host not found' do
       workitem = {'fields' => {

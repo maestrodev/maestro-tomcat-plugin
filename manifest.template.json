@@ -14,40 +14,67 @@
       "command": "/tomcat/deploy",
       "inputs": {
         "host": {
-          "description": "Hostname Of The Server Running Tomcat",
-          "required": true,
+          "label": "Tomcat Host",
+          "description": "Hostname of the server running Tomcat (this field is only used if 'tomcat_root_url' does not contain a valid url)",
+          "required": false,
           "type": "String",
           "value": "localhost"
         },
         "port": {
-          "description": "Port Tomcat Is Bound To",
-          "required": true,
+          "label": "Tomcat Port",
+          "description": "Port Tomcat is bound to (this field is only used if 'tomcat_root_url' does not contain a valid url)",
+          "required": false,
           "type": "Integer",
           "value": 8080
         },
+        "tomcat_root_url": {
+          "label": "Tomcat URL",
+          "description": "Complete URL of Tomcat root page.  Alternatively, if 'host' and 'port' fields used, the path to Tomcat - usually '/')",
+          "required": true,
+          "type": "String",
+          "value": "/"
+        },
         "path": {
-          "description": "Location Of The WAR File",
+          "label": "WAR file (local)",
+          "description": "Location of the WAR file (on local filesystem)",
           "required": true,
           "type": "String",
           "value": ""
         },
         "web_path": {
-          "description": "Context Path Of The Manager Application",
+          "label": "Context Path (tomcat)",
+          "description": "Context path to deploy application to",
           "required": true,
           "type": "String",
           "value": ""
         },
         "user": {
-          "description": "Tomcat User",
+          "label": "Tomcat User",
+          "description": "Username that has manager role on Tomcat (do not include in 'tomcat_root_url' field as password would be visible)",
           "required": true,
           "type": "String",
           "value": ""
         },
         "password": {
-          "description": "Tomcat Manager Password",
+          "label": "Tomcat Password",
+          "description": "Password for user that has manager role on Tomcat (do not include in 'tomcat_root_url' field as password would be visible)",
           "required": true,
           "type": "Password",
           "value": ""
+        },
+        "max_connect_attempts": {
+          "label": "Max Retries",
+          "description": "Number of times the task will attempt to connect to Tomcat",
+          "required": true,
+          "type": "Integer",
+          "value": 5
+        },
+        "timeout": {
+          "label": "Retry Delay",
+          "description": "How long to delay between connection retries",
+          "required": true,
+          "type": "Integer",
+          "value": 90
         }
       },
       "outputs": {"output" : {"type" : "String"}},
