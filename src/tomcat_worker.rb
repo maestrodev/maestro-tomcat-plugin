@@ -83,6 +83,7 @@ module MaestroDev
           @tomcat_root_url = "#{path_bits[1]}://#{@host}#{@port > 0 ? ":#{@port}" : ''}#{path_bits[7]}"
         else
           @tomcat_root_url = URI.join("http://#{@host}:#{@port}", @tomcat_root_url).to_s
+          errors << 'port not specified (either in port or tomcat_root_url)' if @port < 1
         end
 
         # Must end with a '/' or the URI.join method will cause problems (it may remove the path component)
@@ -92,7 +93,6 @@ module MaestroDev
         @max_connect_attempts = get_int_field('max_connect_attempts', 5)
 
         errors << 'host not specified (either in host or tomcat_root_url)' if @host.empty?
-        errors << 'port not specified (either in port or tomcat_root_url)' if @port < 1
         errors << 'user not specified (either in user or tomcat_root_url)' if @user.empty?
         errors << 'password not specified (either in password or tomcat_root_url)' if @password.empty?
 
