@@ -32,7 +32,7 @@ GEM
       mini_portile (~> 0.5.0)
     rake (0.9.2.2)
     rcov (0.9.11-java)
-    rdoc (4.0.1)
+    rdoc (4.1.1)
       json (~> 1.4)
     rest-client-maestro (1.7.2.maestro)
       mime-types (>= 1.16, < 2.0)
@@ -65,7 +65,7 @@ DEPENDENCIES
   nokogiri
   rake (~> 0.9.2.2)
   rcov (= 0.9.11)
-  rest-client-maestro (~> 1.7.2.maestro)
+  rest-client-maestro (= 1.7.2.maestro)
   rspec
   webmock
   zippy
