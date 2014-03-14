@@ -4,7 +4,7 @@
 
   <groupId>com.maestrodev.maestro.plugins</groupId>
   <artifactId>maestro-tomcat-plugin</artifactId>
-  <version>1.5</version>
+  <version>1.6-SNAPSHOT</version>
   <name>maestro-tomcat-plugin</name>
   <packaging>pom</packaging>
 
